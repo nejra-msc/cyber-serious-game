@@ -4,23 +4,59 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
+import os
+from google import genai
 
 # Podešavanje stranice
-st.set_page_config(page_title="NIS2 Cyber Serious Game", page_icon="🛡️", layout="centered")
+st.set_page_config(page_title="AI-Enabled NIS2 Cyber Serious Game", page_icon="🛡️", layout="centered")
 
-# Baza scenarija
+# Inicijalizacija Gemini Klijenta
+# Koristimo st.secrets za bezbjedno čuvanje API ključa na Streamlit Cloud-u
+# Za lokalno testiranje možete postaviti ekosistemsku varijablu ili unijeti ključ direktno
+api_key = st.secrets.get("GEMINI_API_KEY", os.environ.get("GEMINI_API_KEY"))
+client = genai.Client(api_key=api_key) if api_key else None
+
+def generisi_ai_feedback(scenario_naslov, scenario_opis, izabrani_odgovor, uloga, je_tacno):
+    """Poziva Gemini AI za generisanje dinamičke analize odluke u realnom vremenu."""
+    if not client:
+        return "*(AI Mentor je trenutno u offline režimu. API ključ nije konfigurisan.)*"
+        
+    status_tekst = "ispravnu i usklađenu" if je_tacno else "pogrešnu i rizičnu"
+    
+    prompt = f"""
+    Djeluješ kao napredni AI Cyber Mentor i stručnjak za NIS2 direktivu unutar javnih institucija u Bosni i Hercegovini.
+    Zaposlenik na poziciji '{uloga}' je donio {status_tekst} odluku u sljedećoj situaciji:
+    
+    Scenario: {scenario_naslov}
+    Opis situacije: {scenario_opis}
+    Izabrana reakcija zaposlenika: {izabrani_odgovor}
+    
+    Napiši kratku, stručnu i edukativnu analizu ove odluke (maksimalno 3 rečenice) na bosanskom jeziku. 
+    Eksplicitno objasni zašto je ta odluka dobra ili zašto predstavlja kritičan bezbjednosni rizik u kontekstu zrelosti institucije i NIS2 standarda.
+    Obrati se direktno zaposleniku.
+    """
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        return response.text
+    except Exception as e:
+        return f"Greška pri generisanju AI analize: {str(e)}"
+
+# Baza scenarija (Zadržavamo strukturu, ali feedback prepuštamo vještačkoj inteligenciji)
 scenarios = [
     {
         "id": 1, "roles": [1, 2],
         "title": "Scenario 1: Hitni e-mail od direktora (CEO Fraud)",
-        "desc": "Na vaš službeni e-mail stiže hitan zahtjev od generalnog direktora. Traži se hitna isplata 25.000 KM na novi račun inostranog dobavljača zbog iznenadnog sudskog poravnanja. Naglašeno je da je stvar povjerljiva i da je direktor na sastanku. Šta radite?",
+        "desc": "Na vaš službeni e-mail stiže hitan zahtjev od generalnog direktora. Traći se hitna isplata 25.000 KM na novi račun inostranog dobavljača zbog iznenadnog sudskog poravnanja. Naglašeno je da je stvar povjerljiva i da je direktor na sastanku. Šta radite?",
         "opts": [
             "Odmah prosljeđujem e-mail kolegama u računovodstvu uz nalog da se izvrši uplata.",
             "Zovem direktora na telefon ili odlazim do njegove kancelarije da potvrdim identitet i zahtjev.",
             "Odgovaram na e-mail i tražim skeniranu odluku sa pečatom ustanove."
         ],
-        "correct": 1, "cost": 30000, "rep": 40,
-        "feedback": "Empirijski podaci iz vaše ustanove pokazuju dramatičan rizik: čak 56.5% zaposlenika pravi fatalnu grešku prosljeđivanja ovog maila unutar sistema! Provjera nezavisnim kanalom (uživo ili fiksni telefon) je jedini NIS2 usklađen odgovor."
+        "correct": 1, "cost": 30000, "rep": 40
     },
     {
         "id": 2, "roles": [1, 2, 3, 4],
@@ -31,8 +67,7 @@ scenarios = [
             "Ostavljam ga na vidljivom mjestu na recepciji ili u kuhinji da ga vlasnik sam uzme.",
             "Odnosim stik direktno IT službi ili osobi zaduženoj za bezbjednost, bez spajanja na mrežu."
         ],
-        "correct": 2, "cost": 40000, "rep": 30,
-        "feedback": "U vašoj ustanovi 65.2% zaposlenika ispravno postupa i odnosi stik u IT. Ipak, preostalih 34.8% koji bi ga ostavili na stolu ili uključili predstavljaju otvoren ulaz za ransomware napade koji kriptuju servere."
+        "correct": 2, "cost": 40000, "rep": 30
     },
     {
         "id": 3, "roles": [1, 2, 4],
@@ -41,10 +76,9 @@ scenarios = [
         "opts": [
             "Kliknem na link i unesem podatke sa kartice jer često privatno ili poslovno naručujem.",
             "Ne klikam na link, brišem poruku odmah i blokiram pošiljaoca.",
-            "Prosjeđujem SMS kolegama kroz interne Viber ili WhatsApp grupe da provjerim."
+            "Prosljeđujem SMS kolegama kroz interne Viber ili WhatsApp grupe da provjerim."
         ],
-        "correct": 1, "cost": 15000, "rep": 20,
-        "feedback": "Čak 34.8% zaposlenika u anketi pokazuje ranjivost na ovaj napad kroz klikanje ili dijeljenje kroz nezaštićene chat kanale. Brisanje i blokada štite finansijska sredstva i podatke ustanove."
+        "correct": 1, "cost": 15000, "rep": 20
     },
     {
         "id": 4, "roles": [3],
@@ -55,20 +89,18 @@ scenarios = [
             "Odmah pokrećem proceduru izolacije servera (izvlačenje mrežnog kabla) i aktiviram Incident Response plan.",
             "Restartujem server putem udaljenog pristupa i pratim hoće li se stanje stabilizovati."
         ],
-        "correct": 1, "cost": 50000, "rep": 50,
-        "feedback": "Usklađenost sa NIS2 direktivom nalaže hitno provođenje faze suzbijanja (Containment). Svako odlaganje ili puki restart omogućava potpunu eksfiltraciju povjerljivih podataka građana."
+        "correct": 1, "cost": 50000, "rep": 50
     },
     {
         "id": 5, "roles": [1, 2, 3, 4],
         "title": "Scenario 5: Sumnjivo ponašanje i usporavanje računara",
-        "desc": "Vaš računar odjednom ekstremno usporava rad, kursor se na ekranu pomijera sam od sebe, a komandna linija (CMD) se na sekundu sama upalila i ugasila. Šta radite?",
+        "desc": "Vaš računar odjednom ekstremno usporava rad, kursor se na ekranu pomijera sam od sebe, a komandna linija (CMD) se na sekundu sama upalila i ugasilia. Šta radite?",
         "opts": [
             "Isključujem mrežni kabal iz zida (ili gasim Wi-Fi) i odmah telefonom obavještavam IT podršku.",
             "Pretražujem internet i instaliram neki besplatni antivirusni alat da skenira sistem.",
             "Nastavljam sa radom, vjerovatno sistem vrši redovna ažuriranja u pozadini."
         ],
-        "correct": 0, "cost": 25000, "rep": 25,
-        "feedback": "Svega 47.8% zaposlenika u vašoj ustanovi ispravno izoluje uređaj iz mreže. Fizičko isključenje sprječava širenje malicioznog koda na ostale računare unutar institucije."
+        "correct": 0, "cost": 25000, "rep": 25
     },
     {
         "id": 6, "roles": [1, 4],
@@ -79,8 +111,7 @@ scenarios = [
             "Spuštam fascikle, zatvaram vrata i ljubazno zamolim osobu da pokaže ID karticu ili da se javi na recepciju.",
             "Ubrzavam korak i pravim se da ne primjećujem ko je iza mene."
         ],
-        "correct": 1, "cost": 10000, "rep": 35,
-        "feedback": "Odlično! Čak 78.3% ispitanika u vašoj firmi ispravno prepoznaje opasnost od Tailgating-a. Kontrola fizičkog pristupa je ključna komponenta informacione bezbjednosti."
+        "correct": 1, "cost": 10000, "rep": 35
     },
     {
         "id": 7, "roles": [1, 2, 3, 4],
@@ -91,8 +122,7 @@ scenarios = [
             "Dugačka fraza (Passphrase) sastavljena od 4 nasumične riječi (npr. 'KafaKnjigaKrajinaZima2026').",
             "Kombinacija imena odjeljenja i tekuće godine radi lakšeg pamćenja."
         ],
-        "correct": 1, "cost": 10000, "rep": 15,
-        "feedback": "Svega 21.7% ispitanika prepoznaje prednost dugih fraza. Dužina lozinke pruža znatno veću matematičku otpornost na Brute-Force napade nego sama kompleksnost."
+        "correct": 1, "cost": 10000, "rep": 15
     },
     {
         "id": 8, "roles": [1, 3],
@@ -103,8 +133,7 @@ scenarios = [
             "Koristim službeni laptop spojen direktno na kućni Wi-Fi bez ikakvih dodatnih bezbjednosnih koraka.",
             "Koristim isključivo službeni laptop ustanove uz obavezno pokretanje enkriptovanog VPN tunela."
         ],
-        "correct": 2, "cost": 20000, "rep": 30,
-        "feedback": "Oko 60.9% zaposlenih ispravno prepoznaje važnost VPN-a. Uz upotrebu privatnih neprovjerenih uređaja (BYOD) u javnim institucijama predstavlja ogroman i po NIS2 kažnjiv rizik."
+        "correct": 2, "cost": 20000, "rep": 30
     }
 ]
 
@@ -113,13 +142,12 @@ def generisi_pdf(ime, uloga, bodovi, max_bodova, budzet, ugled, odgovori):
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
     styles = getSampleStyleSheet()
     
-    # Custom stilovi bez čudnih karaktera radi izbjegavanja grešaka u ReportLab-u
     naslov_stil = ParagraphStyle('NaslovStil', parent=styles['Heading1'], fontSize=16, textColor=colors.HexColor('#1E3A8A'), spaceAfter=15)
     podnaslov_stil = ParagraphStyle('PodnaslovStil', parent=styles['Heading2'], fontSize=12, textColor=colors.HexColor('#0F172A'), spaceBefore=10, spaceAfter=10)
     tekst_stil = ParagraphStyle('TekstStil', parent=styles['Normal'], fontSize=10, leading=14, textColor=colors.HexColor('#334155'))
     
     elements = []
-    elements.append(Paragraph("IZVJESTAJ O REZULTATIMA CYBER OBUKE (NIS2)", naslov_stil))
+    elements.append(Paragraph("IZVJESTAJ O REZULTATIMA CYBER OBUKE (NIS2) - AI POWERED", naslov_stil))
     elements.append(Spacer(1, 10))
     
     podaci = [
@@ -127,7 +155,7 @@ def generisi_pdf(ime, uloga, bodovi, max_bodova, budzet, ugled, odgovori):
         [Paragraph("<b>Odjeljenje:</b>", tekst_stil), Paragraph(uloga, tekst_stil)],
         [Paragraph("<b>Rezultat:</b>", tekst_stil), Paragraph(f"{bodovi} od {max_bodova} tacnih odgovora", tekst_stil)],
         [Paragraph("<b>Preostali budzet:</b>", tekst_stil), Paragraph(f"{budzet:,} KM", tekst_stil)],
-        [Paragraph("<b>Konacni ugled:</b>", tekst_stil), Paragraph(f"{ugled}%", tekst_stil)]
+        [Paragraph("<b>Konacni ugled:</b>", tekst_stil), Paragraph(f"{ugled}%%", tekst_stil)] # Dupli %% sprječava Python string greške
     ]
     
     t = Table(podaci, colWidths=[150, 350])
@@ -139,11 +167,12 @@ def generisi_pdf(ime, uloga, bodovi, max_bodova, budzet, ugled, odgovori):
     elements.append(t)
     elements.append(Spacer(1, 20))
     
-    elements.append(Paragraph("METRIKA PO SCENARIJIMA", podnaslov_stil))
+    elements.append(Paragraph("METRIKA PO SCENARIJIMA I DYNAMICKI AI MENTOR FEEDBACK", podnaslov_stil))
     for i, ans in enumerate(odgovori):
         elements.append(Paragraph(f"<b>{i+1}. {ans['naslov']}</b>", tekst_stil))
         elements.append(Paragraph(f"Status odluke: {ans['status']}", tekst_stil))
         elements.append(Paragraph(f"Izabrani odgovor: {ans['izbor']}", tekst_stil))
+        elements.append(Paragraph(f"<b>AI Analiza:</b> {ans['ai_feedback']}", tekst_stil))
         elements.append(Spacer(1, 10))
         
     doc.build(elements)
@@ -159,8 +188,16 @@ if 'ge_started' not in st.session_state:
     st.session_state.score = 0
     st.session_state.user_answers = []
 
-st.title("🛡️ Adaptivni NIS2 Cyber Serious Game")
-st.caption("Personalizovana obuka i evaluacija zrelosti javnih institucija")
+st.title("🛡️ AI-Enabled Adaptivni NIS2 Cyber Serious Game")
+st.caption("Personalizovana obuka i evaluacija zrelosti zasnovana na vještačkoj inteligenciji")
+
+# Provjera statusa API ključa u bočnoj traci radi transparentnosti rada
+with st.sidebar:
+    st.subheader("AI Engine Status")
+    if client:
+        st.success("Gemini AI model je povezan i aktivan! 🧠")
+    else:
+        st.warning("AI je u offline modu. Dodajte GEMINI_API_KEY u Streamlit Secrets.")
 
 if not st.session_state.ge_started:
     st.subheader("Inicijalizacija obuke zaposlenika")
@@ -206,7 +243,6 @@ else:
         st.metric("Konačni Ugled Ustanove", f"{st.session_state.reputation}%")
         st.metric("Tačni Odgovori", f"{st.session_state.score} / {len(filtered)}")
         
-        # Generisanje PDF-a
         pdf_data = generisi_pdf(
             st.session_state.ime, st.session_state.uloga, 
             st.session_state.score, len(filtered),
@@ -215,9 +251,9 @@ else:
         )
         
         st.download_button(
-            label="📥 Preuzmi službeni PDF izvještaj za Direktora",
+            label="📥 Preuzmi službeni AI-Generated PDF izvještaj za Direktora",
             data=pdf_data,
-            file_name=f"NIS2_Izvjestaj_{st.session_state.ime.replace(' ', '_')}.pdf",
+            file_name=f"NIS2_AI_Izvjestaj_{st.session_state.ime.replace(' ', '_')}.pdf",
             mime="application/pdf",
             use_container_width=True
         )
@@ -227,7 +263,6 @@ else:
             st.rerun()
             
     else:
-        # Dashboard
         col1, col2, col3 = st.columns(3)
         col1.metric("💰 BUDŽET", f"{st.session_state.budget:,} KM")
         col2.metric("📈 UGLED", f"{st.session_state.reputation}%")
@@ -238,28 +273,54 @@ else:
         st.subheader(sc["title"])
         st.info(sc["desc"])
         
-        form = st.form(key=f"sc_form_{idx}")
-        odgovor = form.radio("Izaberite vašu reakciju:", sc["opts"])
-        potvrdi = form.form_submit_button("Potvrdi odluku 📝")
-        
-        if potvrdi:
-            chosen_idx = sc["opts"].index(odgovor)
-            is_correct = (chosen_idx == sc["correct"])
+        # Prikaz forme za unos odgovora
+        if f"potvrđeno_{idx}" not in st.session_state:
+            with st.form(key=f"sc_form_{idx}"):
+                odgovor = st.radio("Izaberite vašu reakciju:", sc["opts"])
+                potvrdi = st.form_submit_button("Potvrdi odluku 📝")
+                
+                if potvrdi:
+                    chosen_idx = sc["opts"].index(odgovor)
+                    is_correct = (chosen_idx == sc["correct"])
+                    
+                    # Generisanje DYNAMIČKOG AI komentara u pozadini
+                    with st.spinner("🚀 AI Mentor analizira vašu odluku kroz prizmu NIS2 direktive..."):
+                        ai_comment = generisi_ai_feedback(sc["title"], sc["desc"], odgovor, st.session_state.uloga, is_correct)
+                    
+                    st.session_state[f"odgovor_{idx}"] = odgovor
+                    st.session_state[f"is_correct_{idx}"] = is_correct
+                    st.session_state[f"ai_comment_{idx}"] = ai_comment
+                    st.session_state[f"potvrđeno_{idx}"] = True
+                    
+                    # Ažuriranje metrika sistema zrelosti
+                    status = "TAČNO" if is_correct else "NETAČNO"
+                    st.session_state.user_answers.append({
+                        "naslov": sc["title"],
+                        "izbor": odgovor,
+                        "status": status,
+                        "ai_feedback": ai_comment
+                    })
+                    
+                    if is_correct:
+                        st.session_state.score += 1
+                    else:
+                        st.session_state.budget -= sc["cost"]
+                        st.session_state.reputation -= sc["rep"]
+                    st.rerun()
+        else:
+            # Prikaz rezultata nakon potvrde (AI Feedback ostaje vidljiv na ekranu)
+            odgovor = st.session_state[f"odgovor_{idx}"]
+            is_correct = st.session_state[f"is_correct_{idx}"]
+            ai_comment = st.session_state[f"ai_comment_{idx}"]
             
-            status = "TAČNO" if is_correct else "NETAČNO"
-            st.session_state.user_answers.append({
-                "naslov": sc["title"],
-                "izbor": odgovor,
-                "status": status
-            })
+            st.disabled = True
+            st.radio("Vaša izabrana reakcija:", sc["opts"], index=sc["opts"].index(odgovor), disabled=True)
             
             if is_correct:
-                st.session_state.score += 1
-                st.success(f"**Odluka je ispravna!** \n\n 🤖 CyberMentor: {sc['feedback']}")
+                st.success(f"**Odluka je ispravna!** \n\n 🤖 **AI CyberMentor:** {ai_comment}")
             else:
-                st.session_state.budget -= sc["cost"]
-                st.session_state.reputation -= sc["rep"]
-                st.error(f"**Kritičan propust!** \n\n 🤖 CyberMentor: {sc['feedback']}")
+                st.error(f"**Kritičan propust!** \n\n 🤖 **AI CyberMentor:** {ai_comment}")
                 
-            st.session_state.current_idx += 1
-            st.button("Nastavi dalje ➡️")
+            if st.button("Nastavi dalje ➡️"):
+                st.session_state.current_idx += 1
+                st.rerun()
