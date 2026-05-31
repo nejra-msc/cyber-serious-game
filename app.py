@@ -8,7 +8,7 @@ import os
 from google import genai
 
 # Podešavanje stranice
-st.set_page_config(page_title="AI-Enabled NIS2 Cyber Serious Game", page_icon="🛡️", layout="centered")
+st.set_page_config(page_title="Personalizirana edukacija", page_icon="🛡️", layout="centered")
 
 # Inicijalizacija Gemini Klijenta
 # Koristimo st.secrets za bezbjedno čuvanje API ključa na Streamlit Cloud-u
@@ -188,8 +188,8 @@ if 'ge_started' not in st.session_state:
     st.session_state.score = 0
     st.session_state.user_answers = []
 
-st.title("🛡️ AI-Enabled Adaptivni NIS2 Cyber Serious Game")
-st.caption("Personalizovana obuka i evaluacija zrelosti zasnovana na vještačkoj inteligenciji")
+st.title("🛡️")
+st.caption("Personalizovana obuka i evaluacija zrelosti")
 
 # Provjera statusa API ključa u bočnoj traci radi transparentnosti rada
 with st.sidebar:
@@ -197,11 +197,11 @@ with st.sidebar:
     if client:
         st.success("Gemini AI model je povezan i aktivan! 🧠")
     else:
-        st.warning("AI je u offline modu. Dodajte GEMINI_API_KEY u Streamlit Secrets.")
+        st.warning("AI je u offline modu.")
 
 if not st.session_state.ge_started:
     st.subheader("Inicijalizacija obuke zaposlenika")
-    ime = st.text_input("Ime i prezime zaposlenika:", placeholder="Npr. Nejra Skenderović")
+    ime = st.text_input("Ime i prezime zaposlenika:", placeholder="Npr. Marko Marković")
     uloga = st.selectbox("Sistematizacija radnog mjesta:", [
         "Menadžment i upravljanje",
         "Finansije, računovodstvo i pravni poslovi",
@@ -209,7 +209,7 @@ if not st.session_state.ge_started:
         "Opća administracija i logistika"
     ])
     
-    if st.button("Pokreni personalizovani trening 🚀", use_container_width=True):
+    if st.button("Pokreni trening", use_container_width=True):
         if ime.strip() == "":
             st.error("Molimo unesite ime i prezime!")
         else:
@@ -237,7 +237,7 @@ else:
             else:
                 st.info("🥈 NAGRADA: Srebrni NIS2 Certifikat o obuci.")
         else:
-            st.error("🚨 KRITIČAN INCIDENT - GAME OVER! Ustanova je pretrpjela krah sistema.")
+            st.error("🚨 KRITIČAN INCIDENT! Ustanova je pretrpjela krah sistema.")
             
         st.metric("Konačni Budžet", f"{st.session_state.budget:,} KM")
         st.metric("Konačni Ugled Ustanove", f"{st.session_state.reputation}%")
@@ -251,7 +251,7 @@ else:
         )
         
         st.download_button(
-            label="📥 Preuzmi službeni AI-Generated PDF izvještaj za Direktora",
+            label="Preuzmi službeni PDF izvještaj za Direktora",
             data=pdf_data,
             file_name=f"NIS2_AI_Izvjestaj_{st.session_state.ime.replace(' ', '_')}.pdf",
             mime="application/pdf",
@@ -284,7 +284,7 @@ else:
                     is_correct = (chosen_idx == sc["correct"])
                     
                     # Generisanje DYNAMIČKOG AI komentara u pozadini
-                    with st.spinner("🚀 AI Mentor analizira vašu odluku kroz prizmu NIS2 direktive..."):
+                    with st.spinner("AI-DA analizira vašu odluku:"):
                         ai_comment = generisi_ai_feedback(sc["title"], sc["desc"], odgovor, st.session_state.uloga, is_correct)
                     
                     st.session_state[f"odgovor_{idx}"] = odgovor
@@ -317,9 +317,9 @@ else:
             st.radio("Vaša izabrana reakcija:", sc["opts"], index=sc["opts"].index(odgovor), disabled=True)
             
             if is_correct:
-                st.success(f"**Odluka je ispravna!** \n\n 🤖 **AI CyberMentor:** {ai_comment}")
+                st.success(f"**Odluka je ispravna!** \n\n 🤖 **AI-DA:** {ai_comment}")
             else:
-                st.error(f"**Kritičan propust!** \n\n 🤖 **AI CyberMentor:** {ai_comment}")
+                st.error(f"**Kritičan propust!** \n\n 🤖 **AI-DA:** {ai_comment}")
                 
             if st.button("Nastavi dalje ➡️"):
                 st.session_state.current_idx += 1
