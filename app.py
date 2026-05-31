@@ -193,11 +193,11 @@ st.caption("Personalizovana obuka i evaluacija zrelosti")
 
 # Provjera statusa API ključa u bočnoj traci radi transparentnosti rada
 with st.sidebar:
-    st.subheader("AI Engine Status")
+    st.subheader("AI")
     if client:
-        st.success("Gemini AI model je povezan i aktivan! 🧠")
+        st.success("Model je povezan i aktivan!")
     else:
-        st.warning("AI je u offline modu.")
+        st.warning("Offline mod.")
 
 if not st.session_state.ge_started:
     st.subheader("Inicijalizacija obuke zaposlenika")
@@ -233,9 +233,9 @@ else:
             st.success(f"Zaposlenik **{st.session_state.ime}** je uspješno završio obuku!")
             if st.session_state.score == len(filtered):
                 st.balloons()
-                st.warning("🏆 NAGRADA: Zlatni NIS2 Certifikat cyber izvrsnosti!")
+                st.warning("🏆 NAGRADA: Certifikat izvrsnosti!")
             else:
-                st.info("🥈 NAGRADA: Srebrni NIS2 Certifikat o obuci.")
+                st.info("🥈 NAGRADA: Srebrni certifikat.")
         else:
             st.error("🚨 KRITIČAN INCIDENT! Ustanova je pretrpjela krah sistema.")
             
@@ -253,7 +253,7 @@ else:
         st.download_button(
             label="Preuzmi službeni PDF izvještaj za Direktora",
             data=pdf_data,
-            file_name=f"NIS2_AI_Izvjestaj_{st.session_state.ime.replace(' ', '_')}.pdf",
+            file_name=f"Izvjestaj_{st.session_state.ime.replace(' ', '_')}.pdf",
             mime="application/pdf",
             use_container_width=True
         )
